@@ -1,0 +1,16 @@
+begin
+boolean
+else
+end
+false
+for
+if
+integer
+next
+readln
+real
+step
+to
+true
+while
+writeln
