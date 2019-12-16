@@ -3,10 +3,10 @@ package file;
 import java.io.FileWriter;
 import java.io.IOException;
 
-public class FileOut {
+public class LexemeOutput {
     private FileWriter writer;
 
-    public FileOut(String path) {
+    public LexemeOutput(String path) {
         try {
             writer = new FileWriter(path);
         } catch (IOException e) {

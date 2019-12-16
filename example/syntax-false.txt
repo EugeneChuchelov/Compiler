@@ -1,0 +1,5 @@
+e,a,s:real;
+k,i:integer;
+e:=0.001
+for i:=0 to i==3 begin k:=1; a:=1/3; s:=0; while a>=e begin a:=a/3; s:=s+a; k:=k+1 end; e:=e/10; writeln e; writeln s; writeln k end next
+end

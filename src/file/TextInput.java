@@ -3,10 +3,10 @@ package file;
 import java.io.FileInputStream;
 import java.io.IOException;
 
-public class FileInput {
+public class TextInput {
     private FileInputStream fileInputStream;
 
-    public FileInput(String fileName) {
+    public TextInput(String fileName) {
         try {
             fileInputStream = new FileInputStream(fileName);
         } catch (IOException e) {

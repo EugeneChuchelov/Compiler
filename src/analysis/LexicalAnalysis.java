@@ -1,359 +1,384 @@
 package analysis;
 
+import exception.NumberFormatException;
 import exception.UnexpectedSymbolException;
-import file.FileInput;
-import file.FileOut;
+import exception.UnknownDelimiterException;
+import file.LexemeOutput;
 import file.Table;
+import file.TextInput;
 
 public class LexicalAnalysis {
-    public static void run(FileInput fileInput, FileOut fileOut){
+
+    private static char next;
+
+    private static StringBuilder buffer;
+
+    private static TextInput textInput;
+
+    private static LexemeOutput lexemeOutput;
+
+    private static Table delimiters;
+
+    private static Table numbers;
+
+    private static int line = 1;
+
+    private static int column = 0;
+
+    public static String run(TextInput textInput, LexemeOutput lexemeOutput) {
+        LexicalAnalysis.textInput = textInput;
+        LexicalAnalysis.lexemeOutput = lexemeOutput;
+        String result;
+
         Table words = new Table("tables/1.txt", 16);
         words.load();
-        Table delimiters = new Table("tables/2.txt", 19);
+        delimiters = new Table("tables/2.txt", 19);
         delimiters.load();
-        Table numbers = new Table("tables/3.txt");
+        numbers = new Table("tables/3.txt");
         Table identifiers = new Table("tables/4.txt");
-        StringBuilder buffer = new StringBuilder();
+        buffer = new StringBuilder();
 
-        char next = fileInput.getChar();
+        getChar();
         try {
             while (next != 65535) {
                 buffer.append(next);
-                if (isWhiteSpace(next)) {
-                    next = fileInput.getChar();
-                } else if (isLetter(next)) {
-                    next = fileInput.getChar();
-                    while (isLetter(next) || isDigit(next)) {
+                if (isWhiteSpace()) {
+                    getChar();
+                } else if(next == '('){
+                    getChar();
+                    if(next == '*'){
+                        getChar();
+                        while (next != ')'){
+                            while(next != '*'){
+                                getChar();
+                            }
+                            getChar();
+                        }
+                        getChar();
+                    } else {
+                        lexemeOutput.out(2, delimiters.look(buffer));
+                    }
+                } else if (isLetter()) {
+                    getChar();
+                    while (isLetter() || isDigit()) {
                         buffer.append(next);
-                        next = fileInput.getChar();
+                        getChar();
                     }
                     int number = words.look(buffer);
                     if (number != -1) {
-                        fileOut.out(1, number);
+                        lexemeOutput.out(1, number);
                     } else {
-                        fileOut.out(4, identifiers.add(buffer.toString()));
+                        lexemeOutput.out(4, identifiers.add(buffer.toString()));
                     }
-                } else if (isDigit(next) || next == '.') {
-                    checkNumber(next, buffer, fileInput, fileOut, numbers, delimiters);
-                    next = fileInput.getChar();
+                } else if (isDigit() || next == '.') {
+                    checkNumber();
                 } else if (next == '|') {
-                    checkDoubleSymbol('|', next, buffer, fileInput, fileOut, delimiters);
+                    checkDoubleSymbol('|');
                 } else if (next == '=') {
-                    checkDoubleSymbol('=', next, buffer, fileInput, fileOut, delimiters);
+                    checkDoubleSymbol('=');
                 } else if (next == '&') {
-                    checkDoubleSymbol('&', next, buffer, fileInput, fileOut, delimiters);
+                    checkDoubleSymbol('&');
                 } else if (next == '!' || next == '<' || next == '>' || next == ':') {
-                    next = fileInput.getChar();
+                    getChar();
                     if (next == '=') {
                         buffer.append(next);
-                        fileOut.out(2, delimiters.look(buffer));
-                        next = fileInput.getChar();
+                        lexemeOutput.out(2, delimiters.look(buffer));
+                        getChar();
                     } else {
-                        fileOut.out(2, delimiters.look(buffer));
+                        lexemeOutput.out(2, delimiters.look(buffer));
                     }
                 } else if (delimiters.look(buffer) != -1) {
-                    fileOut.out(2, delimiters.look(buffer));
-                    next = fileInput.getChar();
+                    lexemeOutput.out(2, delimiters.look(buffer));
+                    getChar();
                 }
                 buffer.delete(0, buffer.length());
             }
-        } catch (UnexpectedSymbolException e) {
-            e.printStackTrace();
+            result = "Ok";
+        } catch (UnknownDelimiterException e) {
+            result = "Unknown delimiter at " + line + ":" + column;
+        } catch (NumberFormatException e){
+            result = "Unexpected symbol in number at " + line + ":" + column;
+        } catch (Exception e){
+            result = "General error";
         }
         identifiers.out();
         numbers.out();
-        fileInput.close();
-        fileOut.close();
+        textInput.close();
+        lexemeOutput.close();
+        return result;
     }
 
-    private static void checkDoubleSymbol(char symbol, char next, StringBuilder buffer,
-                                          FileInput fileInput, FileOut fileOut,
-                                          Table delimiters) throws UnexpectedSymbolException {
-        buffer.append(next);
-        next = fileInput.getChar();
+    private static void getChar(){
+        column++;
+        next = textInput.getChar();
+    }
+
+    private static void checkDoubleSymbol(char symbol) throws UnexpectedSymbolException {
+        getChar();
         if (next != symbol) {
-            throw new UnexpectedSymbolException("Unknown delimiter");
+            throw new UnknownDelimiterException();
         }
         buffer.append(next);
-        fileOut.out(2, delimiters.look(buffer));
+        lexemeOutput.out(2, delimiters.look(buffer));
+        getChar();
         buffer.delete(0, buffer.length());
     }
 
-    private static void checkNumber(char next, StringBuilder buffer,
-                                    FileInput fileInput, FileOut fileOut,
-                                    Table numbers, Table delimiters) throws UnexpectedSymbolException {
+    private static void checkNumber() throws UnexpectedSymbolException {
         if (next == '0' || next == '1') {
-            binary(next, buffer, fileInput, fileOut, numbers, delimiters);
+            binary();
         } else if (next == '2' || next == '3' || next == '4' || next == '5' || next == '6' || next == '7') {
-            octal(next, buffer, fileInput, fileOut, numbers, delimiters);
+            octal();
         } else if (next == '8' || next == '9') {
-            decimal(next, buffer, fileInput, fileOut, numbers, delimiters);
+            decimal();
         } else if (next == '.') {
             buffer.insert(0, 0);
-            real(next, buffer, fileInput, fileOut, numbers, delimiters);
+            real();
         }
     }
 
-    private static void binary(char next, StringBuilder buffer,
-                               FileInput fileInput, FileOut fileOut,
-                               Table numbers, Table delimiters) throws UnexpectedSymbolException {
-        next = fileInput.getChar();
+    private static void binary() throws UnexpectedSymbolException {
+        getChar();
         while (next == '0' || next == '1') {
             buffer.append(next);
-            next = fileInput.getChar();
+            getChar();
         }
         if (next == '2' || next == '3' || next == '4' || next == '5' || next == '6' || next == '7') {
-            octal(next, buffer, fileInput, fileOut, numbers, delimiters);
+            octal();
         } else if (next == '8' || next == '9') {
-            decimal(next, buffer, fileInput, fileOut, numbers, delimiters);
+            decimal();
         } else if (next == '.') {
-            real(next, buffer, fileInput, fileOut, numbers, delimiters);
+            real();
         } else if (next == 'e' || next == 'E') {
-            exponentialInt(next, buffer, fileInput, fileOut, numbers, delimiters);
+            exponentialInt();
         } else if (next == 'o' || next == 'O') {
-            convertOctal(next, buffer, fileInput, fileOut, numbers);
+            convertOctal();
         } else if (next == 'a' || next == 'c' || next == 'f' || next == 'A' || next == 'C' || next == 'F') {
-            hexadecimal(next, buffer, fileInput, fileOut, numbers);
+            hexadecimal();
         } else if (next == 'd' || next == 'D') {
             buffer.append(next);
-            next = fileInput.getChar();
-            convertDecimal(buffer, fileOut, numbers);
+            getChar();
+            convertDecimal();
         } else if (next == 'h' || next == 'H') {
-            convertHexadecimal(next, buffer, fileInput, fileOut, numbers);
+            convertHexadecimal();
         } else if (next == 'b' || next == 'B') {
             buffer.append(next);
-            next = fileInput.getChar();
-            if (isHexadecimalDigit(next)) {
-                hexadecimal(next, buffer, fileInput, fileOut, numbers);
+            getChar();
+            if (isHexadecimalDigit()) {
+                hexadecimal();
             } else {
-                convertBinary(next, buffer, fileInput, fileOut, numbers);
+                convertBinary();
             }
         } else if (next == ' ' || next == '\r' || next == '\n' || delimiters.contains(next)) {
-            decimal(next, buffer, fileInput, fileOut, numbers, delimiters);
+            decimal();
         } else {
-            throw new UnexpectedSymbolException("Unexpected symbol in number");
+            throw new NumberFormatException();
         }
     }
 
-    private static void convertBinary(char next, StringBuilder buffer,
-                                      FileInput fileInput, FileOut fileOut,
-                                      Table numbers) {
+    private static void convertBinary() {
         buffer.deleteCharAt(buffer.length() - 1);
         int binary = Integer.parseInt(buffer.toString(), 2);
-        fileOut.out(3, numbers.add(String.valueOf(binary)));
+        lexemeOutput.out(3, numbers.add(String.valueOf(binary)));
     }
 
-    private static void octal(char next, StringBuilder buffer,
-                              FileInput fileInput, FileOut fileOut,
-                              Table numbers, Table delimiters) throws UnexpectedSymbolException {
+    private static void octal() throws UnexpectedSymbolException {
         while (next == '0' || next == '1' || next == '2' || next == '3' ||
                 next == '4' || next == '5' || next == '6' || next == '7') {
-            next = fileInput.getChar();
+            getChar();
         }
         if (next == '8' || next == '9') {
-            decimal(next, buffer, fileInput, fileOut, numbers, delimiters);
+            decimal();
         } else if (next == '.') {
-            real(next, buffer, fileInput, fileOut, numbers, delimiters);
+            real();
         } else if (next == 'e' || next == 'E') {
-            exponentialInt(next, buffer, fileInput, fileOut, numbers, delimiters);
+            exponentialInt();
         } else if (next == 'h' || next == 'H') {
-            convertHexadecimal(next, buffer, fileInput, fileOut, numbers);
-        } else if (isHexadecimalDigit(next)) {
-            hexadecimal(next, buffer, fileInput, fileOut, numbers);
+            convertHexadecimal();
+        } else if (isHexadecimalDigit()) {
+            hexadecimal();
         } else if (next == 'o' || next == 'O') {
-            convertOctal(next, buffer, fileInput, fileOut, numbers);
+            convertOctal();
         } else if (next == ' ' || next == '\r' || next == '\n' || delimiters.contains(next)) {
             buffer.append('d');
-            convertDecimal(buffer, fileOut, numbers);
+            convertDecimal();
         } else {
-            throw new UnexpectedSymbolException("Unexpected symbol in number");
+            throw new NumberFormatException();
         }
     }
 
-    private static void convertOctal(char next, StringBuilder buffer,
-                                     FileInput fileInput, FileOut fileOut,
-                                     Table numbers) {
+    private static void convertOctal() {
         buffer.append(next);
-        next = fileInput.getChar();
+        getChar();
         buffer.deleteCharAt(buffer.length() - 1);
         int octal = Integer.parseInt(buffer.toString(), 8);
-        fileOut.out(3, numbers.add(String.valueOf(octal)));
+        lexemeOutput.out(3, numbers.add(String.valueOf(octal)));
     }
 
-    private static void decimal(char next, StringBuilder buffer,
-                                FileInput fileInput, FileOut fileOut,
-                                Table numbers, Table delimiters) throws UnexpectedSymbolException {
-        while (isDigit(next)) {
+    private static void decimal() throws UnexpectedSymbolException {
+        while (isDigit()) {
             buffer.append(next);
-            next = fileInput.getChar();
+            getChar();
         }
         if (next == '.') {
-            real(next, buffer, fileInput, fileOut, numbers, delimiters);
+            real();
         } else if (next == 'e' || next == 'E') {
-            exponentialInt(next, buffer, fileInput, fileOut, numbers, delimiters);
+            exponentialInt();
         } else if (next == 'h' || next == 'H') {
-            convertHexadecimal(next, buffer, fileInput, fileOut, numbers);
+            convertHexadecimal();
         } else if (next == 'd' || next == 'D') {
             buffer.append(next);
-            next = fileInput.getChar();
-            convertDecimal(buffer, fileOut, numbers);
+            getChar();
+            convertDecimal();
         } else if (next == 'a' || next == 'b' || next == 'c' || next == 'd' || next == 'e' || next == 'f' ||
                 next == 'A' || next == 'B' || next == 'C' || next == 'D' || next == 'E' || next == 'F' ||
                 next == '0' || next == '1' || next == '2' || next == '3' || next == '4' || next == '5' ||
                 next == '6' || next == '7' || next == '8' || next == '9') {
-            hexadecimal(next, buffer, fileInput, fileOut, numbers);
+            hexadecimal();
         } else if (next == ' ' || next == '\r' || next == '\n' || delimiters.contains(next)) {
             buffer.append('d');
-            convertDecimal(buffer, fileOut, numbers);
+            convertDecimal();
         } else {
-            throw new UnexpectedSymbolException("Unexpected symbol in number");
+            throw new NumberFormatException();
         }
     }
 
-    private static void convertDecimal(StringBuilder buffer,
-                                       FileOut fileOut,
-                                       Table numbers) {
+    private static void convertDecimal() {
         buffer.deleteCharAt(buffer.length() - 1);
         int decimal = Integer.parseInt(buffer.toString(), 10);
-        fileOut.out(3, numbers.add(String.valueOf(decimal)));
+        lexemeOutput.out(3, numbers.add(String.valueOf(decimal)));
     }
 
-    private static void hexadecimal(char next, StringBuilder buffer,
-                                    FileInput fileInput, FileOut fileOut,
-                                    Table numbers) throws UnexpectedSymbolException {
-        while (isHexadecimalDigit(next)) {
+    private static void hexadecimal() throws UnexpectedSymbolException {
+        while (isHexadecimalDigit()) {
             buffer.append(next);
-            next = fileInput.getChar();
+            getChar();
         }
         if (next == 'h' || next == 'H') {
-            convertHexadecimal(next, buffer, fileInput, fileOut, numbers);
+            convertHexadecimal();
         } else {
-            throw new UnexpectedSymbolException("Unexpected symbol in number");
+            throw new NumberFormatException();
         }
     }
 
-    private static void convertHexadecimal(char next, StringBuilder buffer,
-                                           FileInput fileInput, FileOut fileOut,
-                                           Table numbers) {
+    private static void convertHexadecimal() {
         buffer.append(next);
-        next = fileInput.getChar();
+        getChar();
         buffer.deleteCharAt(buffer.length() - 1);
         int hexadecimal = Integer.parseInt(buffer.toString(), 16);
-        fileOut.out(3, numbers.add(String.valueOf(hexadecimal)));
+        lexemeOutput.out(3, numbers.add(String.valueOf(hexadecimal)));
     }
 
-    private static void real(char next, StringBuilder buffer,
-                             FileInput fileInput, FileOut fileOut,
-                             Table numbers, Table delimiters) throws UnexpectedSymbolException {
-
+    private static void real() throws UnexpectedSymbolException {
         buffer.append(next);
-        next = fileInput.getChar();
-        while (isDigit(next)) {
+        getChar();
+        while (isDigit()) {
             buffer.append(next);
-            next = fileInput.getChar();
+            getChar();
         }
         if (next == ' ' || next == '\r' || next == '\n' || delimiters.contains(next)) {
-            fileOut.out(3, numbers.add(buffer.toString()));
+            lexemeOutput.out(3, numbers.add(buffer.toString()));
         } else if (next == 'e' || next == 'E') {
             buffer.append(next);
-            next = fileInput.getChar();
-            exponentialReal(next, buffer, fileInput, fileOut, numbers, delimiters);
+            getChar();
+            exponentialReal();
         } else {
-            throw new UnexpectedSymbolException("Unexpected symbol in number");
+            throw new NumberFormatException();
         }
     }
 
-    private static void exponentialInt(char next, StringBuilder buffer,
-                                       FileInput fileInput, FileOut fileOut,
-                                       Table numbers, Table delimiters) throws UnexpectedSymbolException {
+    private static void exponentialInt() throws UnexpectedSymbolException {
         buffer.append(next);
-        next = fileInput.getChar();
+        getChar();
         if (next == '+' || next == '-') {
             buffer.append(next);
-            next = fileInput.getChar();
-            while (isDigit(next)) {
+            getChar();
+            while (isDigit()) {
                 buffer.append(next);
-                next = fileInput.getChar();
+                getChar();
             }
-            if (isWhiteSpace(next) || delimiters.contains(next)) {
-                fileOut.out(3, numbers.add(buffer.toString()));
+            if (isWhiteSpace() || delimiters.contains(next)) {
+                lexemeOutput.out(3, numbers.add(buffer.toString()));
             } else {
-                throw new UnexpectedSymbolException("Unexpected symbol in number");
+                throw new NumberFormatException();
             }
-        } else if (isDigit(next)) {
-            while (isDigit(next)) {
+        } else if (isDigit()) {
+            while (isDigit()) {
                 buffer.append(next);
-                next = fileInput.getChar();
+                getChar();
             }
-            if (isHexadecimalLetter(next)) {
-                hexadecimal(next, buffer, fileInput, fileOut, numbers);
+            if (isHexadecimalLetter()) {
+                hexadecimal();
             } else if (next == 'h' || next == 'H') {
-                convertHexadecimal(next, buffer, fileInput, fileOut, numbers);
-            } else if (isWhiteSpace(next) || delimiters.contains(next)) {
-                fileOut.out(3, numbers.add(buffer.toString()));
+                convertHexadecimal();
+            } else if (isWhiteSpace() || delimiters.contains(next)) {
+                lexemeOutput.out(3, numbers.add(buffer.toString()));
             } else {
-                throw new UnexpectedSymbolException("Unexpected symbol in number");
+                throw new NumberFormatException();
             }
-        } else if (isHexadecimalLetter(next)) {
-            hexadecimal(next, buffer, fileInput, fileOut, numbers);
+        } else if (isHexadecimalLetter()) {
+            hexadecimal();
         } else if (next == 'h' || next == 'H') {
-            convertHexadecimal(next, buffer, fileInput, fileOut, numbers);
+            convertHexadecimal();
         } else {
-            throw new UnexpectedSymbolException("Unexpected symbol in number");
+            throw new NumberFormatException();
         }
     }
 
-    private static void exponentialReal(char next, StringBuilder buffer,
-                                        FileInput fileInput, FileOut fileOut,
-                                        Table numbers, Table delimiters) throws UnexpectedSymbolException {
+    private static void exponentialReal() throws UnexpectedSymbolException {
         if (next == '+' || next == '-') {
             buffer.append(next);
-            next = fileInput.getChar();
-            while (isDigit(next)) {
+            getChar();
+            while (isDigit()) {
                 buffer.append(next);
-                next = fileInput.getChar();
+                getChar();
             }
-            if (isWhiteSpace(next) || delimiters.contains(next)) {
-                fileOut.out(3, numbers.add(buffer.toString()));
+            if (isWhiteSpace() || delimiters.contains(next)) {
+                lexemeOutput.out(3, numbers.add(buffer.toString()));
             } else {
-                throw new UnexpectedSymbolException("Unexpected symbol in number");
+                throw new NumberFormatException();
             }
-        } else if (isDigit(next)) {
-            while (isDigit(next)) {
+        } else if (isDigit()) {
+            while (isDigit()) {
                 buffer.append(next);
-                next = fileInput.getChar();
+                getChar();
             }
-            if (isWhiteSpace(next) || delimiters.contains(next)) {
-                fileOut.out(3, numbers.add(buffer.toString()));
+            if (isWhiteSpace() || delimiters.contains(next)) {
+                lexemeOutput.out(3, numbers.add(buffer.toString()));
             } else {
-                throw new UnexpectedSymbolException("Unexpected symbol in number");
+                throw new NumberFormatException();
             }
         } else {
-            throw new UnexpectedSymbolException("Unexpected symbol in number");
+            throw new NumberFormatException();
         }
     }
 
-    private static boolean isLetter(char nextChar) {
-        return (nextChar >= 65 && nextChar <= 90) ||
-                (nextChar >= 97 && nextChar <= 122);
+    private static boolean isLetter() {
+        return (next >= 65 && next <= 90) ||
+                (next >= 97 && next <= 122);
     }
 
-    private static boolean isDigit(char nextChar) {
-        return nextChar >= 48 && nextChar <= 57;
+    private static boolean isDigit() {
+        return next >= 48 && next <= 57;
     }
 
-    private static boolean isHexadecimalDigit(char nextChar) {
-        return (nextChar >= 48 && nextChar <= 57) ||
-                (nextChar >= 65 && nextChar <= 70) ||
-                (nextChar >= 97 && nextChar <= 102);
+    private static boolean isHexadecimalDigit() {
+        return (next >= 48 && next <= 57) ||
+                (next >= 65 && next <= 70) ||
+                (next >= 97 && next <= 102);
     }
 
-    private static boolean isHexadecimalLetter(char nextChar) {
-        return (nextChar >= 65 && nextChar <= 70) ||
-                (nextChar >= 97 && nextChar <= 102);
+    private static boolean isHexadecimalLetter() {
+        return (next >= 65 && next <= 70) ||
+                (next >= 97 && next <= 102);
     }
 
-    private static boolean isWhiteSpace(char nextChar) {
-        return nextChar == ' ' || nextChar == '\r' || nextChar == '\n' || nextChar == '\t';
+    private static boolean isWhiteSpace() {
+        if(next == '\n'){
+            line++;
+            column = 0;
+            lexemeOutput.out(2, 0);
+        }
+        return next == ' ' || next == '\r' || next == '\n' || next == '\t';
     }
 }

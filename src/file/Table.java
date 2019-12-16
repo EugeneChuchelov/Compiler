@@ -22,6 +22,14 @@ public class Table {
         return entries.indexOf(s.toString());
     }
 
+    public int look(String s){
+        return entries.indexOf(s);
+    }
+
+    public String get(int number){
+        return entries.get(number);
+    }
+
     public int add(String s){
         if(!entries.contains(s)){
             entries.add(s);
