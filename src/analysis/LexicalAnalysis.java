@@ -44,11 +44,11 @@ public class LexicalAnalysis {
                 buffer.append(next);
                 if (isWhiteSpace()) {
                     getChar();
-                } else if(next == '('){
+                } else if(next == '/'){
                     getChar();
                     if(next == '*'){
                         getChar();
-                        while (next != ')'){
+                        while (next != '/'){
                             while(next != '*'){
                                 getChar();
                             }
@@ -382,7 +382,6 @@ public class LexicalAnalysis {
         if(next == '\n'){
             line++;
             column = 0;
-            lexemeOutput.out(2, 0);
         }
         return next == ' ' || next == '\r' || next == '\n' || next == '\t';
     }

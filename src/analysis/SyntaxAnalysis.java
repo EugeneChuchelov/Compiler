@@ -27,10 +27,6 @@ public class SyntaxAnalysis {
 
     private static List<Identifier> identifiers;
 
-    private static int line = 1;
-
-    private static int column = 0;
-
     public static String run(LexemeInput lexemeInput) {
         SyntaxAnalysis.lexemeInput = lexemeInput;
 
@@ -49,14 +45,14 @@ public class SyntaxAnalysis {
             if(program()){
                 result = "Ok";
             } else {
-                result = "Syntax error at " + line + ":" + column;
+                result = "Syntax error";
             }
         } catch (AlreadyDefinedException e){
-            result = "Defined variable was defined again at " + line + ":" + column;
+            result = "Defined variable was defined again";
         } catch (NotDefinedException e){
-            result = "Not defined variable was used at " + line + ":" + column;
+            result = "Not defined variable was used";
         } catch (TypesMismatchException e){
-            result = "Types mismatch at " + line + ":" + column;
+            result = "Types mismatch";
         } catch (Exception e){
             result = "General error";
         }
@@ -80,17 +76,18 @@ public class SyntaxAnalysis {
 
     private static boolean program() throws SemanticsException {
         getNext();
+        if(!isNext("{"))
+            return false;
+        getNext();
         do {
             if (!(description() || operator())) {
                 return false;
             }
-            if (!(isNext("\\n") || isNext(":"))) {
+            if (!isNext(";")) {
                 return false;
             }
-            line++;
-            column = -1;
             getNext();
-        } while (!isNext("end"));
+        } while (!isNext("}"));
         return true;
     }
 
@@ -400,7 +397,6 @@ public class SyntaxAnalysis {
             getNext();
             if (!expression())
                 return false;
-            //getNext();
             return isNext(")");
         } else if(identifier() || number() || logical()){
             return true;
@@ -487,7 +483,6 @@ public class SyntaxAnalysis {
     }
 
     private static void getNext() {
-            column++;
             next = lexemeInput.getLexeme();
     }
 }
