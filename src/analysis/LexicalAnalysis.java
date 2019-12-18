@@ -185,6 +185,7 @@ public class LexicalAnalysis {
     private static void octal() throws UnexpectedSymbolException {
         while (next == '0' || next == '1' || next == '2' || next == '3' ||
                 next == '4' || next == '5' || next == '6' || next == '7') {
+            buffer.append(next);
             getChar();
         }
         if (next == '8' || next == '9') {
@@ -195,6 +196,10 @@ public class LexicalAnalysis {
             exponentialInt();
         } else if (next == 'h' || next == 'H') {
             convertHexadecimal();
+        } else if (next == 'd' || next == 'D') {
+            buffer.append(next);
+            getChar();
+            convertDecimal();
         } else if (isHexadecimalDigit()) {
             hexadecimal();
         } else if (next == 'o' || next == 'O') {
