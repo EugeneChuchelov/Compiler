@@ -44,11 +44,11 @@ public class LexicalAnalysis {
                 buffer.append(next);
                 if (isWhiteSpace()) {
                     getChar();
-                } else if(next == '('){
+                } else if(next == '/'){
                     getChar();
                     if(next == '*'){
                         getChar();
-                        while (next != ')'){
+                        while (next != '/'){
                             while(next != '*'){
                                 getChar();
                             }
@@ -72,15 +72,18 @@ public class LexicalAnalysis {
                     }
                 } else if (isDigit() || next == '.') {
                     checkNumber();
-                } else if (next == '|') {
-                    checkDoubleSymbol('|');
-                } else if (next == '=') {
-                    checkDoubleSymbol('=');
-                } else if (next == '&') {
-                    checkDoubleSymbol('&');
-                } else if (next == '!' || next == '<' || next == '>' || next == ':') {
+                } else if (next == '>') {
                     getChar();
                     if (next == '=') {
+                        buffer.append(next);
+                        lexemeOutput.out(2, delimiters.look(buffer));
+                        getChar();
+                    } else {
+                        lexemeOutput.out(2, delimiters.look(buffer));
+                    }
+                } else if (next == '<'){
+                    getChar();
+                    if (next == '=' || next == '>') {
                         buffer.append(next);
                         lexemeOutput.out(2, delimiters.look(buffer));
                         getChar();
@@ -113,23 +116,14 @@ public class LexicalAnalysis {
         next = textInput.getChar();
     }
 
-    private static void checkDoubleSymbol(char symbol) throws UnexpectedSymbolException {
-        getChar();
-        if (next != symbol) {
-            throw new UnknownDelimiterException();
-        }
-        buffer.append(next);
-        lexemeOutput.out(2, delimiters.look(buffer));
-        getChar();
-        buffer.delete(0, buffer.length());
-    }
-
     private static void checkNumber() throws UnexpectedSymbolException {
         if (next == '0' || next == '1') {
             binary();
         } else if (next == '2' || next == '3' || next == '4' || next == '5' || next == '6' || next == '7') {
+            getChar();
             octal();
         } else if (next == '8' || next == '9') {
+            getChar();
             decimal();
         } else if (next == '.') {
             buffer.insert(0, 0);
@@ -235,10 +229,7 @@ public class LexicalAnalysis {
             buffer.append(next);
             getChar();
             convertDecimal();
-        } else if (next == 'a' || next == 'b' || next == 'c' || next == 'd' || next == 'e' || next == 'f' ||
-                next == 'A' || next == 'B' || next == 'C' || next == 'D' || next == 'E' || next == 'F' ||
-                next == '0' || next == '1' || next == '2' || next == '3' || next == '4' || next == '5' ||
-                next == '6' || next == '7' || next == '8' || next == '9') {
+        } else if (isHexadecimalDigit()) {
             hexadecimal();
         } else if (next == ' ' || next == '\r' || next == '\n' || delimiters.contains(next)) {
             buffer.append('d');
@@ -382,7 +373,7 @@ public class LexicalAnalysis {
         if(next == '\n'){
             line++;
             column = 0;
-            lexemeOutput.out(2, 0);
+            lexemeOutput.out(2, 11);
         }
         return next == ' ' || next == '\r' || next == '\n' || next == '\t';
     }

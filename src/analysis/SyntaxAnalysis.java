@@ -23,8 +23,6 @@ public class SyntaxAnalysis {
 
     private static Table numbers;
 
-    private static Lexeme buffer;
-
     private static List<Identifier> identifiers;
 
     private static int line = 1;
@@ -80,64 +78,56 @@ public class SyntaxAnalysis {
 
     private static boolean program() throws SemanticsException {
         getNext();
+        if(!isNext("{"))
+            return false;
+        getNext();
         do {
-            if (!(description() || operator())) {
+            if (!(description() || complex())) {
                 return false;
             }
-            if (!(isNext("\\n") || isNext(":"))) {
+            if (!isNext(";")) {
                 return false;
             }
             line++;
             column = -1;
             getNext();
-        } while (!isNext("end"));
+        } while (!isNext("}"));
         return true;
     }
 
     private static boolean description() throws AlreadyDefinedException {
+        if(!type())
+            return false;
+        String type = delimiters.get(next.getNumber());
+        getNext();
+
         List<Identifier> described = new ArrayList<>();
+        addIdentifier(described, next, type);
+
         if (!notDescribedIdentifier())
             return false;
-        buffer = next;
         getNext();
-        if (isNext(":=")){
-            Lexeme l = next;
-            next = buffer;
-            buffer = l;
-            return false;
-        }
-        addIdentifier(described, buffer);
-        buffer = null;
+
         while (isNext(",")) {
             getNext();
             if (!notDescribedIdentifier())
                 return false;
-            addIdentifier(described, next);
+            addIdentifier(described, next, type);
             getNext();
         }
-        if (!isNext(":"))
-            return false;
-        getNext();
-        if (!type())
-            return false;
-        for(Identifier identifier : described){
-            identifier.setType(next.getNumber());
-        }
-        getNext();
-        if(!isNext(";"))
-            return false;
         identifiers.addAll(described);
-        getNext();
         return true;
     }
 
-    private static void addIdentifier(List<Identifier> described, Lexeme lexeme) throws AlreadyDefinedException {
+    private static void addIdentifier(List<Identifier> described, Lexeme lexeme, String type) throws AlreadyDefinedException {
         Identifier identifier = new Identifier(lexeme.getNumber());
+        identifier.setType(type);
         if(identifiers.contains(identifier))
             throw new AlreadyDefinedException();
         if(described.contains(identifier))
             throw new AlreadyDefinedException();
         described.add(identifier);
+
     }
 
     private static boolean notDescribedIdentifier() {
@@ -145,42 +135,31 @@ public class SyntaxAnalysis {
     }
 
     private static boolean type(){
-        return isNext("integer") || isNext("real") || isNext("boolean");
+        return isNext(INTEGER) || isNext(REAL) || isNext(BOOLEAN);
     }
 
     private static boolean operator() throws NotDefinedException, TypesMismatchException {
-        return complex() || assign() || condition() || fixedCycle() ||
-                conditionalCycle() || input() || output();
+        return  assign() || condition() || fixedCycle() ||
+                conditionalCycle() || input() || output() || complex();
     }
 
     private static boolean complex() throws NotDefinedException, TypesMismatchException {
-        if (!isNext("begin"))
-            return false;
-        getNext();
         if (!operator())
             return false;
-        while (isNext(";")) {
+        while (isNext(":") || isNext("\\n")) {
             getNext();
             if (!operator())
                 return false;
         }
-        if (!isNext("end"))
-            return false;
-        getNext();
         return true;
     }
 
     private static boolean assign() throws NotDefinedException, TypesMismatchException {
         if (!identifier())
             return false;
-        String type = words.get(identifiers.get(next.getNumber()).getType());
-        if(buffer != null){
-            next = buffer;
-            buffer = null;
-        } else {
-            getNext();
-        }
-        if (!isNext(":="))
+        String type = identifiers.get(next.getNumber()).getType();
+        getNext();
+        if (!isNext("ass"))
             return false;
         getNext();
         if(!expression())
@@ -202,21 +181,15 @@ public class SyntaxAnalysis {
         if (!isNext("if"))
             return false;
         getNext();
-        if (!isNext("("))
-            return false;
-        getNext();
         if (!expression())
             return false;
         if(!expressionStack.pop().equals(BOOLEAN))
             throw new TypesMismatchException();
-        if (!isNext(")"))
-            return false;
-        getNext();
-        if (!operator())
+        if (!complex())
             return false;
         if (isNext("else")) {
             getNext();
-            return operator();
+            return complex();
         }
         return true;
     }
@@ -234,39 +207,31 @@ public class SyntaxAnalysis {
             return false;
         if(!expressionStack.pop().equals(BOOLEAN))
             throw new TypesMismatchException();
-        if (isNext("step")) {
-            getNext();
-            if (!expression()) {
-                return false;
-            }
-        }
-        if (!operator())
-            return false;
-        if(!isNext("next"))
+        if(!isNext("do"))
             return false;
         getNext();
-        return true;
+        return complex();
     }
 
     private static boolean conditionalCycle() throws NotDefinedException, TypesMismatchException {
         if (!isNext("while"))
             return false;
         getNext();
-        if (!isNext("("))
-            return false;
-        getNext();
         if (!expression())
             return false;
         if(!expressionStack.pop().equals(BOOLEAN))
             throw new TypesMismatchException();
-        if (!isNext(")"))
+        if (!isNext("do"))
             return false;
         getNext();
-        return operator();
+        return complex();
     }
 
     private static boolean input() throws NotDefinedException {
-        if (!isNext("readln"))
+        if (!isNext("read"))
+            return false;
+        getNext();
+        if (!isNext("("))
             return false;
         getNext();
         if (!identifier())
@@ -278,11 +243,17 @@ public class SyntaxAnalysis {
                 return false;
             getNext();
         }
+        if(!isNext(")"))
+            return false;
+        getNext();
         return true;
     }
 
     private static boolean output() throws NotDefinedException, TypesMismatchException {
-        if (!isNext("writeln"))
+        if (!isNext("write"))
+            return false;
+        getNext();
+        if (!isNext("("))
             return false;
         getNext();
         if (!expression())
@@ -293,6 +264,9 @@ public class SyntaxAnalysis {
                 return false;
             getNext();
         }
+        if(!isNext(")"))
+            return false;
+        getNext();
         return true;
     }
 
@@ -324,7 +298,7 @@ public class SyntaxAnalysis {
         while(expressionStack.size() > 1){
             String operand2 = expressionStack.pop();
             String operation = expressionStack.pop();
-            if(operation.equals("!")){
+            if(operation.equals("not")){
                 checkUnary(operand2);
             } else {
                 String operand1 = expressionStack.pop();
@@ -333,9 +307,9 @@ public class SyntaxAnalysis {
         }
     }
 
-    private static final String BOOLEAN = "boolean";
-    private static final String INTEGER = "integer";
-    private static final String REAL = "real";
+    private static final String BOOLEAN = "$";
+    private static final String INTEGER = "%";
+    private static final String REAL = "!";
 
     private static void checkOperation(String operand2, String operation, String operand1) throws TypesMismatchException {
         if(operation.equals("+") || operation.equals("-") || operation.equals("*") || operation.equals("/")){
@@ -347,7 +321,7 @@ public class SyntaxAnalysis {
             } else {
                 expressionStack.push(INTEGER);
             }
-        } else if(operation.equals("||") || operation.equals("&&")) {
+        } else if(operation.equals("or") || operation.equals("and")) {
             if(!operand1.equals(BOOLEAN) || !operand2.equals(BOOLEAN)){
                 throw new TypesMismatchException();
             }
@@ -400,7 +374,6 @@ public class SyntaxAnalysis {
             getNext();
             if (!expression())
                 return false;
-            //getNext();
             return isNext(")");
         } else if(identifier() || number() || logical()){
             return true;
@@ -428,7 +401,7 @@ public class SyntaxAnalysis {
     }
 
     private static boolean unary() {
-        if(isNext("!")){
+        if(isNext("not")){
             pushOperation();
             return true;
         } else {
@@ -437,7 +410,7 @@ public class SyntaxAnalysis {
     }
 
     private static boolean relationshipOperation() {
-        if(isNext("!=") || isNext("==") || isNext("<") ||
+        if(isNext("<>") || isNext("=") || isNext("<") ||
                 isNext("<=") || isNext(">") || isNext(">=")){
             pushOperation();
             return true;
@@ -447,7 +420,7 @@ public class SyntaxAnalysis {
     }
 
     private static boolean additionOperation() {
-        if(isNext("+") || isNext("-") || isNext("||")){
+        if(isNext("+") || isNext("-") || isNext("or")){
             pushOperation();
             return true;
         } else {
@@ -456,7 +429,7 @@ public class SyntaxAnalysis {
     }
 
     private static boolean multiplicationOperation() {
-        if(isNext("*") || isNext("/") || isNext("&&")){
+        if(isNext("*") || isNext("/") || isNext("and")){
             pushOperation();
             return true;
         } else {
@@ -479,7 +452,7 @@ public class SyntaxAnalysis {
     }
 
     private static void pushIdentifier(){
-        expressionStack.push(words.get(identifiers.get(next.getNumber()).getType()));
+        expressionStack.push(identifiers.get(next.getNumber()).getType());
     }
 
     private static void pushLogical(){

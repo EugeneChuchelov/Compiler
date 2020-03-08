@@ -3,17 +3,17 @@ package entity;
 public class Identifier {
     private int id;
 
-    private int type;
+    private String type;
 
     public Identifier(int id) {
         this.id = id;
     }
 
-    public void setType(int type) {
+    public void setType(String type) {
         this.type = type;
     }
 
-    public int getType() {
+    public String getType() {
         return type;
     }
 
