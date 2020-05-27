@@ -1,5 +1,4 @@
 and
-ass
 do
 false
 for

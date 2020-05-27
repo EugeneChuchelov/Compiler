@@ -69,6 +69,10 @@ public class SyntaxAnalysis {
         if (firstSymbol >= 97 && firstSymbol <= 122) {
             table = 1;
             number = words.look(lexeme);
+            if (number == -1){
+               table = 2;
+               number = delimiters.look(lexeme);
+            }
         } else {
             table = 2;
             number = delimiters.look(lexeme);

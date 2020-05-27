@@ -68,7 +68,12 @@ public class LexicalAnalysis {
                     if (number != -1) {
                         lexemeOutput.out(1, number);
                     } else {
-                        lexemeOutput.out(4, identifiers.add(buffer.toString()));
+                        number = delimiters.look(buffer);
+                        if(number != -1){
+                            lexemeOutput.out(2, number);
+                        } else {
+                            lexemeOutput.out(4, identifiers.add(buffer.toString()));
+                        }
                     }
                 } else if (isDigit() || next == '.') {
                     checkNumber();
