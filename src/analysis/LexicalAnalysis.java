@@ -30,9 +30,9 @@ public class LexicalAnalysis {
         LexicalAnalysis.lexemeOutput = lexemeOutput;
         String result;
 
-        Table words = new Table("tables/1.txt", 16);
+        Table words = new Table("tables/1.txt", 17);
         words.load();
-        delimiters = new Table("tables/2.txt", 19);
+        delimiters = new Table("tables/2.txt", 17);
         delimiters.load();
         numbers = new Table("tables/3.txt");
         Table identifiers = new Table("tables/4.txt");
@@ -56,11 +56,11 @@ public class LexicalAnalysis {
                         }
                         getChar();
                     } else {
-                        lexemeOutput.out(2, delimiters.look(buffer));
+                        throw new UnexpectedSymbolException();
                     }
                 } else if (isLetter()) {
                     getChar();
-                    while (isLetter() || isDigit()) {
+                    while (isLetter() || isDigit() || next == '.') {
                         buffer.append(next);
                         getChar();
                     }
@@ -77,34 +77,18 @@ public class LexicalAnalysis {
                     }
                 } else if (isDigit() || next == '.') {
                     checkNumber();
-                } else if (next == '>') {
-                    getChar();
-                    if (next == '=') {
-                        buffer.append(next);
-                        lexemeOutput.out(2, delimiters.look(buffer));
-                        getChar();
-                    } else {
-                        lexemeOutput.out(2, delimiters.look(buffer));
-                    }
-                } else if (next == '<'){
-                    getChar();
-                    if (next == '=' || next == '>') {
-                        buffer.append(next);
-                        lexemeOutput.out(2, delimiters.look(buffer));
-                        getChar();
-                    } else {
-                        lexemeOutput.out(2, delimiters.look(buffer));
-                    }
                 } else if (delimiters.look(buffer) != -1) {
                     lexemeOutput.out(2, delimiters.look(buffer));
                     getChar();
+                } else {
+                    throw new UnexpectedSymbolException();
                 }
                 buffer.delete(0, buffer.length());
             }
             result = "Ok";
         } catch (UnknownDelimiterException e) {
             result = "Unknown delimiter at " + line + ":" + column;
-        } catch (NumberFormatException e){
+        } catch (UnexpectedSymbolException e){
             result = "Unexpected symbol in number at " + line + ":" + column;
         } catch (Exception e){
             result = "General error";
@@ -378,7 +362,7 @@ public class LexicalAnalysis {
         if(next == '\n'){
             line++;
             column = 0;
-            lexemeOutput.out(2, 11);
+            lexemeOutput.out(2, 3);
         }
         return next == ' ' || next == '\r' || next == '\n' || next == '\t';
     }

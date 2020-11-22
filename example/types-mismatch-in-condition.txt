@@ -1,10 +1,3 @@
-{! e,a,s; % k,i; e ass 0.001; for i ass 0 to i+3 do k ass 1
-  a ass 1/3
-  s ass 0
-  while a>=e do a ass a/3
-    s ass s+a
-    k ass k+1
-    e ass e/10
-    write (e)
-    write (s)
-    write (k);}
+program var integer x, y, z, i begin read (x); if x EQ 0 then x ass 1; for i ass 1 to i EQ 18h do y ass x mult i
+ z ass z plus y
+ if z LT 0 then while y mult 20h do y ass y min 1; write (z) end.

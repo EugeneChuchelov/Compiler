@@ -32,9 +32,9 @@ public class SyntaxAnalysis {
     public static String run(LexemeInput lexemeInput) {
         SyntaxAnalysis.lexemeInput = lexemeInput;
 
-        words = new Table("tables/1.txt", 16);
+        words = new Table("tables/1.txt", 17);
         words.load();
-        delimiters = new Table("tables/2.txt", 19);
+        delimiters = new Table("tables/2.txt", 17);
         delimiters.load();
         numbers = new Table("tables/3.txt", 16);
         numbers.load();
@@ -59,6 +59,8 @@ public class SyntaxAnalysis {
             result = "General error";
         }
 
+        int x = Table.timesGet;
+        int y = Table.timesLooked;
         return result;
     }
 
@@ -82,27 +84,33 @@ public class SyntaxAnalysis {
 
     private static boolean program() throws SemanticsException {
         getNext();
-        if(!isNext("{"))
+        if(!isNext("program"))
             return false;
         getNext();
-        do {
-            if (!(description() || complex())) {
-                return false;
-            }
-            if (!isNext(";")) {
-                return false;
-            }
-            line++;
-            column = -1;
+        if(!isNext("var"))
+            return false;
+        getNext();
+        if(!description())
+            return false;
+        if(!isNext("begin"))
+            return false;
+        getNext();
+        if(!operator())
+            return false;
+        while(isNext(";")){
             getNext();
-        } while (!isNext("}"));
-        return true;
+            if(!operator())
+                return false;
+        }
+        if(!isNext("end."))
+            return false;
+        return !lexemeInput.hasNext();
     }
 
     private static boolean description() throws AlreadyDefinedException {
         if(!type())
             return false;
-        String type = delimiters.get(next.getNumber());
+        String type = words.get(next.getNumber());
         getNext();
 
         List<Identifier> described = new ArrayList<>();
@@ -151,7 +159,13 @@ public class SyntaxAnalysis {
         if (!operator())
             return false;
         while (isNext(":") || isNext("\\n")) {
-            getNext();
+            while(isNext("\\n")){
+                line++;
+                column = 0;
+                getNext();
+            }
+            if(isNext(":"))
+                getNext();
             if (!operator())
                 return false;
         }
@@ -189,6 +203,9 @@ public class SyntaxAnalysis {
             return false;
         if(!expressionStack.pop().equals(BOOLEAN))
             throw new TypesMismatchException();
+        if (!isNext("then"))
+            return false;
+        getNext();
         if (!complex())
             return false;
         if (isNext("else")) {
@@ -247,7 +264,7 @@ public class SyntaxAnalysis {
                 return false;
             getNext();
         }
-        if(!isNext(")"))
+        if (!isNext(")"))
             return false;
         getNext();
         return true;
@@ -268,7 +285,7 @@ public class SyntaxAnalysis {
                 return false;
             getNext();
         }
-        if(!isNext(")"))
+        if (!isNext(")"))
             return false;
         getNext();
         return true;
@@ -311,12 +328,12 @@ public class SyntaxAnalysis {
         }
     }
 
-    private static final String BOOLEAN = "$";
-    private static final String INTEGER = "%";
-    private static final String REAL = "!";
+    private static final String BOOLEAN = "boolean";
+    private static final String INTEGER = "integer";
+    private static final String REAL = "real";
 
     private static void checkOperation(String operand2, String operation, String operand1) throws TypesMismatchException {
-        if(operation.equals("+") || operation.equals("-") || operation.equals("*") || operation.equals("/")){
+        if(operation.equals("plus") || operation.equals("min") || operation.equals("mult") || operation.equals("div")){
             if(operand1.equals(BOOLEAN) || operand2.equals(BOOLEAN)){
                 throw new TypesMismatchException();
             }
@@ -405,7 +422,7 @@ public class SyntaxAnalysis {
     }
 
     private static boolean unary() {
-        if(isNext("not")){
+        if(isNext("~")){
             pushOperation();
             return true;
         } else {
@@ -414,8 +431,8 @@ public class SyntaxAnalysis {
     }
 
     private static boolean relationshipOperation() {
-        if(isNext("<>") || isNext("=") || isNext("<") ||
-                isNext("<=") || isNext(">") || isNext(">=")){
+        if(isNext("NE") || isNext("EQ") || isNext("LT") ||
+                isNext("LE") || isNext("GT") || isNext("GE")){
             pushOperation();
             return true;
         } else {
@@ -424,7 +441,7 @@ public class SyntaxAnalysis {
     }
 
     private static boolean additionOperation() {
-        if(isNext("+") || isNext("-") || isNext("or")){
+        if(isNext("plus") || isNext("min") || isNext("or")){
             pushOperation();
             return true;
         } else {
@@ -433,7 +450,7 @@ public class SyntaxAnalysis {
     }
 
     private static boolean multiplicationOperation() {
-        if(isNext("*") || isNext("/") || isNext("and")){
+        if(isNext("mult") || isNext("div") || isNext("and")){
             pushOperation();
             return true;
         } else {

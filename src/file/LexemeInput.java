@@ -19,6 +19,10 @@ public class LexemeInput {
 
     public Lexeme getLexeme(){
         String[] numbers = scanner.nextLine().split(",");
-        return new Lexeme(Integer.valueOf(numbers[0]), Integer.valueOf(numbers[1]));
+        return new Lexeme(Integer.parseInt(numbers[0]), Integer.parseInt(numbers[1]));
+    }
+
+    public boolean hasNext(){
+        return scanner.hasNext();
     }
 }

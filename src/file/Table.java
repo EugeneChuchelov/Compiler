@@ -1,17 +1,19 @@
 package file;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 
 public class Table {
-    private List<String> entries;
+    private Map<String, Integer> entries;
     private String path;
+    private int number = 0;
+
+  public   static int timesGet = 0;
+    public static int timesLooked = 0;
 
     public Table(String path, int number) {
         this.path = path;
-        entries = new ArrayList<>(number);
+        entries = new HashMap<>(number);
     }
 
     public Table(String path) {
@@ -19,32 +21,40 @@ public class Table {
     }
 
     public int look(StringBuilder s){
-        return entries.indexOf(s.toString());
+        timesLooked++;
+        return entries.getOrDefault(s.toString(), -1);
     }
 
     public int look(String s){
-        return entries.indexOf(s);
+        timesGet++;
+        return entries.getOrDefault(s, -1);
     }
 
     public String get(int number){
-        return entries.get(number);
+        timesGet++;
+        String key = "";
+        for(Map.Entry<String, Integer> entry : entries.entrySet()){
+            if(entry.getValue() == number)
+                key = entry.getKey();
+        }
+        return key;
     }
 
     public int add(String s){
-        if(!entries.contains(s)){
-            entries.add(s);
+        if(!entries.containsKey(s)){
+            entries.put(s, number++);
             return entries.size() - 1;
         }
-        return entries.indexOf(s);
+        return entries.get(s);
     }
 
     public void out(){
         int totalCount = 0;
-        for(String s : entries){
+        for(String s : entries.keySet()){
             totalCount += s.length();
         }
         StringBuilder stringBuilder = new StringBuilder(totalCount + entries.size());
-        for(String s : entries){
+        for(String s : entries.keySet()){
             stringBuilder.append(s);
             stringBuilder.append('\n');
         }
@@ -66,12 +76,12 @@ public class Table {
             e.printStackTrace();
         }
         while (scanner.hasNext()){
-            entries.add(scanner.nextLine());
+            entries.put(scanner.nextLine(), number++);
         }
         scanner.close();
     }
 
     public boolean contains(char c){
-        return entries.contains(String.valueOf(c));
+        return entries.containsKey(String.valueOf(c));
     }
 }
